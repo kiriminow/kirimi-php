@@ -69,8 +69,8 @@ $result = $client->sendMessage('device_id', '628123456789', 'Hello World!');
 
 // Message with media
 $result = $client->sendMessage(
-    'device_id', 
-    '628123456789', 
+    'device_id',
+    '628123456789',
     'Check out this image!',
     'https://example.com/image.jpg'
 );
@@ -78,9 +78,84 @@ $result = $client->sendMessage(
 
 **Parameters:**
 - `$deviceId` (string): Your device ID
-- `$receiver` (string): Recipient's phone number (with country code)
-- `$message` (string): Message content (max 1200 characters)
+- `$phone` (string): Recipient's phone number (with country code)
+- `$message` (string): Message content
 - `$mediaUrl` (string|null): URL of media file to send (optional)
+
+### Send Message Fast
+
+Send message without typing effect simulation.
+
+```php
+$result = $client->sendMessageFast('device_id', '628123456789', 'Hello!');
+```
+
+### Send Message File
+
+Send a file/document via multipart upload (max 50MB).
+
+```php
+$result = $client->sendMessageFile(
+    'device_id',
+    '628123456789',
+    '/path/to/document.pdf',
+    ['message' => 'Here is your invoice', 'fileName' => 'invoice.pdf']
+);
+```
+
+### Send WABA Message
+
+Send message explicitly via WhatsApp Business API (Meta Cloud API).
+
+```php
+$result = $client->sendWabaMessage('waba_device_id', '628123456789', 'Hello from WABA!');
+```
+
+### List Devices
+
+```php
+$devices = $client->listDevices();
+```
+
+### Device Status
+
+```php
+$status = $client->deviceStatus('device_id');
+$detailed = $client->deviceStatusEnhanced('device_id');
+```
+
+### User Info
+
+```php
+$info = $client->userInfo();
+```
+
+### Save Contact
+
+```php
+$result = $client->saveContact('628123456789', ['name' => 'John Doe', 'email' => 'john@example.com']);
+```
+
+### Broadcast Message
+
+Send to multiple recipients. `$phones` accepts array or comma-separated string.
+
+```php
+$result = $client->broadcastMessage(
+    'device_id',
+    ['628111111111', '628222222222', '628333333333'],
+    'Promo hari ini!',
+    ['delay' => 3]  // 3 seconds between messages
+);
+```
+
+### List Deposits & Packages
+
+```php
+$all = $client->listDeposits();
+$paid = $client->listDeposits('paid');   // '', 'paid', 'unpaid', 'expired'
+$packages = $client->listPackages();
+```
 
 **Package Support:**
 - **Free**: Text only (with watermark)
@@ -88,40 +163,44 @@ $result = $client->sendMessage(
 
 ### Generate OTP
 
-Generate and send a 6-digit OTP code to a WhatsApp number.
+Generate and send OTP via device WhatsApp.
 
 ```php
+// Basic
 $result = $client->generateOTP('device_id', '628123456789');
-print_r($result);
-// Output: ['phone' => '628123456789', 'message' => 'OTP berhasil dikirim', 'expires_in' => '5 menit']
+
+// With options
+$result = $client->generateOTP('device_id', '628123456789', [
+    'otp_length'       => 6,
+    'otp_type'         => 'numeric',   // numeric | alphabetic | alphanumeric
+    'customOtpMessage' => 'Your OTP is {otp}. Valid for 5 minutes.',
+]);
 ```
-
-**Parameters:**
-- `$deviceId` (string): Your device ID
-- `$phone` (string): Phone number to receive OTP
-
-**Requirements:**
-- Package must be Basic or Pro
-- Device must be connected and not expired
 
 ### Validate OTP
 
-Validate a previously sent OTP code.
-
 ```php
 $result = $client->validateOTP('device_id', '628123456789', '123456');
-print_r($result);
-// Output: ['phone' => '628123456789', 'verified' => true, 'verified_at' => '2024-01-15T10:30:00.000Z']
 ```
 
-**Parameters:**
-- `$deviceId` (string): Your device ID
-- `$phone` (string): Phone number that received the OTP
-- `$otp` (string): 6-digit OTP code to validate
+### Send OTP V2
 
-**Notes:**
-- OTP expires after 5 minutes
-- Each OTP can only be used once
+Send OTP via WABA template or device (V2 endpoint).
+
+```php
+$result = $client->sendOtpV2('628123456789', 'device_id', [
+    'method'          => 'device',   // device | waba
+    'app_name'        => 'MyApp',
+    'custom_message'  => 'Your code is {otp}',
+    // 'template_code' => 'my_template' // for waba method
+]);
+```
+
+### Verify OTP V2
+
+```php
+$result = $client->verifyOtpV2('628123456789', '123456');
+```
 
 ### Health Check
 
