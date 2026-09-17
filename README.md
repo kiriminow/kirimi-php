@@ -3,7 +3,7 @@
 [![Packagist Version](https://img.shields.io/packagist/v/kirimi/kirimi-php)](https://packagist.org/packages/kirimi/kirimi-php)
 [![Packagist Downloads](https://img.shields.io/packagist/dm/kirimi/kirimi-php)](https://packagist.org/packages/kirimi/kirimi-php)
 [![PHP Version](https://img.shields.io/packagist/php-v/kirimi/kirimi-php)](https://packagist.org/packages/kirimi/kirimi-php)
-[![License](https://img.shields.io/packagist/l/kirimi/kirimi-php)](https://github.com/yolkmonday/kirimi-php/blob/main/LICENSE)
+[![License](https://img.shields.io/packagist/l/kirimi/kirimi-php)](https://github.com/kiriminow/kirimi-php/blob/main/LICENSE)
 
 Official PHP client library for the Kirimi WhatsApp API. This library provides a simple and efficient way to send WhatsApp messages, handle OTP generation and validation, and manage WhatsApp communication from your PHP applications.
 

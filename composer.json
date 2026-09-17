@@ -2,7 +2,7 @@
     "name": "kirimi/kirimi-php",
     "description": "Official PHP client library for the Kirimi WhatsApp API. Send messages, handle OTP verification, and manage WhatsApp communication with ease.",
     "type": "library",
-    "version": "2.0.0",
+    "version": "3.0.0",
     "keywords": [
         "kirimi",
         "whatsapp",
