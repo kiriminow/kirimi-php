@@ -1,0 +1,56 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+
+      - name: verify tag matches version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          ver="$(grep -m1 '"version"' composer.json | sed -E 's/.*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')"
+          if [ "$tag" != "$ver" ]; then
+            echo "tag=$tag composer.json=$ver" >&2
+            exit 1
+          fi
+
+      - run: composer install --prefer-dist --no-progress
+      - run: vendor/bin/phpunit --no-coverage
+
+      # Packagist builds its versions from git tags. This only asks it to
+      # re-crawl immediately instead of waiting for the webhook/poll.
+      - name: notify packagist
+        env:
+          PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
+          PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN }}
+        run: |
+          if [ -z "$PACKAGIST_USERNAME" ] || [ -z "$PACKAGIST_TOKEN" ]; then
+            echo "Packagist credentials not set, relying on the tag webhook"
+            exit 0
+          fi
+          curl -sfS -X POST \
+            "https://packagist.org/api/update-package?username=${PACKAGIST_USERNAME}&apiToken=${PACKAGIST_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            -d "{\"repository\":{\"url\":\"https://github.com/${GITHUB_REPOSITORY}\"}}"
+          echo "Packagist update requested"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
