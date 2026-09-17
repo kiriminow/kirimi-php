@@ -31,10 +31,14 @@ class OTPService
      * @param string $userCode User code from Kirimi Dashboard
      * @param string $secret Secret key from Kirimi Dashboard
      * @param string $deviceId Device ID
+     * @param string|null $baseUrl Optional API base URL (default: client default)
      */
-    public function __construct(string $userCode, string $secret, string $deviceId)
+    public function __construct(string $userCode, string $secret, string $deviceId, ?string $baseUrl = null)
     {
-        $this->client = new KirimiClient($userCode, $secret);
+        $this->client = $baseUrl === null
+            ? new KirimiClient($userCode, $secret)
+            : new KirimiClient($userCode, $secret, $baseUrl);
+
         $this->deviceId = $deviceId;
     }
 

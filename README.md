@@ -10,12 +10,15 @@ Official PHP client library for the Kirimi WhatsApp API. This library provides a
 ## 🚀 Features
 
 - ✅ Send WhatsApp messages (text and media)
-- ✅ Generate and validate OTP codes
+- ✅ Broadcast to up to 1000 recipients
+- ✅ WhatsApp Business API (WABA) templates, replies, conversations and OTP
+- ✅ Generate and validate OTP codes (v1 and v2)
+- ✅ Reverse OTP verification
+- ✅ Devices, contacts, packages and deposits
 - ✅ Support for multiple package types (Free, Lite, Basic, Pro)
 - ✅ PSR-4 autoloading support
-- ✅ Comprehensive error handling
+- ✅ Comprehensive error handling with HTTP status codes
 - ✅ Type hints and modern PHP features
-- ✅ Health check monitoring
 - ✅ Service classes for common use cases
 
 ## 📦 Installation
@@ -28,7 +31,7 @@ composer require kirimi/kirimi-php
 
 ## 🔧 Requirements
 
-- PHP 7.4 or higher
+- PHP 8.0 or higher
 - Guzzle HTTP client (installed automatically)
 - ext-json (usually included in PHP)
 
@@ -61,7 +64,8 @@ $client = new KirimiClient($userCode, $secret, $endpoint = 'https://api.kirimi.i
 
 ### Send Message
 
-Send WhatsApp messages with optional media support.
+Send WhatsApp messages with optional media support. The recipient is passed as `$receiver`
+and sent to the API as `receiver` (country code, no `+`).
 
 ```php
 // Text message only
@@ -74,17 +78,25 @@ $result = $client->sendMessage(
     'Check out this image!',
     'https://example.com/image.jpg'
 );
+
+// With advanced options
+$result = $client->sendMessage('device_id', '628123456789', 'Hello!', null, [
+    'enableTypingEffect' => true,
+    'typingSpeedMs'      => 350,       // 100-800
+    'quotedMessageId'    => 'MSG_ID',
+]);
 ```
 
 **Parameters:**
 - `$deviceId` (string): Your device ID
-- `$phone` (string): Recipient's phone number (with country code)
+- `$receiver` (string): Recipient's phone number (with country code)
 - `$message` (string): Message content
 - `$mediaUrl` (string|null): URL of media file to send (optional)
+- `$options` (array): Optional `fileName`, `enableTypingEffect`, `typingSpeedMs`, `quotedMessageId`
 
 ### Send Message Fast
 
-Send message without typing effect simulation.
+Send a message without the typing effect simulation.
 
 ```php
 $result = $client->sendMessageFast('device_id', '628123456789', 'Hello!');
@@ -92,7 +104,8 @@ $result = $client->sendMessageFast('device_id', '628123456789', 'Hello!');
 
 ### Send Message File
 
-Send a file/document via multipart upload (max 50MB).
+Send a file/document via multipart upload (max 50MB). The filename is sent both as the
+multipart filename and as the `fileName` field.
 
 ```php
 $result = $client->sendMessageFile(
@@ -103,24 +116,65 @@ $result = $client->sendMessageFile(
 );
 ```
 
-### Send WABA Message
+### Broadcast Message
 
-Send message explicitly via WhatsApp Business API (Meta Cloud API).
+Send a message to up to 1000 recipients. `$numbers` is always sent as a JSON array
+and `$label` is required.
 
 ```php
-$result = $client->sendWabaMessage('waba_device_id', '628123456789', 'Hello from WABA!');
+$result = $client->broadcastMessage(
+    'device_id',
+    'promo-juli',                                 // label, max 100 chars
+    ['628111111111', '628222222222'],
+    'Promo hari ini!',
+    ['delay' => 30]                               // seconds, clamped 30-3600
+);
 ```
 
-### List Devices
+### WABA — Send Template Message
+
+Send a Meta-approved template via WhatsApp Business API. WABA endpoints use `waba_id`,
+never `device_id`.
 
 ```php
-$devices = $client->listDevices();
+$result = $client->sendWabaMessage('waba_id', '628123456789', 'order_update', [
+    'variables' => ['Budi', 'ORD-001'],
+    'header'    => ['type' => 'text', 'text' => 'Order update'],
+]);
 ```
 
-### Device Status
+### WABA — Reply, Conversations & Templates
 
 ```php
-$status = $client->deviceStatus('device_id');
+// Free-form reply (within the 24h customer service window)
+$result = $client->wabaReply('waba_id', '628123456789', [
+    'type' => 'text',
+    'text' => 'Halo, ada yang bisa dibantu?',
+]);
+
+// List conversations
+$conversations = $client->wabaConversations(50, 1);   // limit, page
+
+// Refresh template status from Meta
+$templates = $client->wabaTemplatesSync('waba_id');
+```
+
+### WABA — OTP
+
+```php
+$result = $client->wabaSendOtp('waba_id', '628123456789', 'otp_auth');
+$verify = $client->wabaVerifyOtp('waba_id', '628123456789', '123456');
+```
+
+### Devices
+
+```php
+$device  = $client->createDevice(3, 'VOUCHER10');       // package_id, voucher_code
+$connect = $client->connectDevice('device_id');          // returns QR/session state
+$renew   = $client->renewDevice('device_id', 4, 'VOUCHER10');
+
+$devices  = $client->listDevices(1, 10);                 // page, limit
+$status   = $client->deviceStatus('device_id');
 $detailed = $client->deviceStatusEnhanced('device_id');
 ```
 
@@ -130,36 +184,18 @@ $detailed = $client->deviceStatusEnhanced('device_id');
 $info = $client->userInfo();
 ```
 
-### Save Contact
+### Contacts
+
+Existing numbers are skipped, not overwritten.
 
 ```php
-$result = $client->saveContact('628123456789', ['name' => 'John Doe', 'email' => 'john@example.com']);
+$result = $client->saveContact('John Doe', '628123456789', 'device_id');
+
+$bulk = $client->saveContactsBulk([
+    ['nama' => 'John Doe', 'nomor' => '628123456789'],
+    ['nama' => 'Jane Doe', 'nomor' => '628987654321'],
+], 'device_id');   // max 1000 contacts
 ```
-
-### Broadcast Message
-
-Send to multiple recipients. `$phones` accepts array or comma-separated string.
-
-```php
-$result = $client->broadcastMessage(
-    'device_id',
-    ['628111111111', '628222222222', '628333333333'],
-    'Promo hari ini!',
-    ['delay' => 3]  // 3 seconds between messages
-);
-```
-
-### List Deposits & Packages
-
-```php
-$all = $client->listDeposits();
-$paid = $client->listDeposits('paid');   // '', 'paid', 'unpaid', 'expired'
-$packages = $client->listPackages();
-```
-
-**Package Support:**
-- **Free**: Text only (with watermark)
-- **Lite/Basic/Pro**: Text + Media support
 
 ### Generate OTP
 
@@ -171,8 +207,9 @@ $result = $client->generateOTP('device_id', '628123456789');
 
 // With options
 $result = $client->generateOTP('device_id', '628123456789', [
-    'otp_length'       => 6,
+    'otp_length'       => 6,           // 4-20, default 8
     'otp_type'         => 'numeric',   // numeric | alphabetic | alphanumeric
+    'customOtpText'    => 'Your code',
     'customOtpMessage' => 'Your OTP is {otp}. Valid for 5 minutes.',
 ]);
 ```
@@ -185,14 +222,27 @@ $result = $client->validateOTP('device_id', '628123456789', '123456');
 
 ### Send OTP V2
 
-Send OTP via WABA template or device (V2 endpoint).
+Send an OTP through the Kirimi provider, your own device, or your own WABA.
 
 ```php
-$result = $client->sendOtpV2('628123456789', 'device_id', [
-    'method'          => 'device',   // device | waba
-    'app_name'        => 'MyApp',
-    'custom_message'  => 'Your code is {otp}',
-    // 'template_code' => 'my_template' // for waba method
+// Kirimi provider (Rp 595 per delivered OTP)
+$result = $client->sendOtpV2('628123456789', [
+    'method'   => 'whatsapp',
+    'app_name' => 'MyApp',
+]);
+
+// Your own connected device (free)
+$result = $client->sendOtpV2('628123456789', [
+    'method'         => 'device',
+    'device_id'      => 'device_id',
+    'custom_message' => 'Your OTP is {{otp}}',
+]);
+
+// Your own WABA + AUTHENTICATION template (free)
+$result = $client->sendOtpV2('628123456789', [
+    'method'        => 'waba_user',
+    'waba_id'       => 'waba_id',
+    'template_name' => 'otp_auth',
 ]);
 ```
 
@@ -201,6 +251,39 @@ $result = $client->sendOtpV2('628123456789', 'device_id', [
 ```php
 $result = $client->verifyOtpV2('628123456789', '123456');
 ```
+
+### Reverse OTP
+
+The customer sends a token back to your device, which verifies automatically.
+
+```php
+$create = $client->otpReverseCreate('628123456789', 'device_id', [
+    'app_name'        => 'MyApp',
+    'callback_url'    => 'https://example.com/callback',
+    'custom_message'  => 'Send {{token}} from {{phone}} to verify.',
+    'success_message' => 'Verified!',
+    'failure_message' => 'Verification failed.',
+]);
+
+$status = $client->otpReverseStatus($create['token']);   // pending|verified|phone_mismatch|expired
+```
+
+### Deposits & Packages
+
+```php
+$packages = $client->listPackages();
+
+$deposit = $client->createDeposit(50000);        // min 100
+$status  = $client->depositStatus($ref);
+$cancel  = $client->cancelDeposit($ref);         // must be unpaid
+
+$all  = $client->listDeposits();
+$paid = $client->listDeposits(['status' => 'paid', 'page' => 1, 'limit' => 10]);
+```
+
+**Package Support:**
+- **Free**: Text only (with watermark)
+- **Lite/Basic/Pro**: Text + Media support
 
 ### Health Check
 
@@ -376,24 +459,41 @@ return [
 
 ## ⚠️ Error Handling
 
-The library provides comprehensive error handling using `KirimiException`:
+The library provides comprehensive error handling using `KirimiException`. Use
+`getStatusCode()` to distinguish failures; it returns the HTTP status code from the
+response (`null` for network errors).
+
+| Code | Meaning |
+|------|---------|
+| `400` | Invalid params |
+| `401` | Wrong secret |
+| `402` | Insufficient balance (`/v2/otp/send` whatsapp) |
+| `403` | Feature not in package / subscription inactive |
+| `404` | Not found |
+| `429` | Rate limited |
+| `500` | Server error |
+| `502` | Number undeliverable |
+| `503` | Provider outage |
 
 ```php
 use Kirimi\KirimiException;
 
 try {
-    $client->sendMessage('device_id', 'invalid_number', 'Hello');
+    $client->sendMessage('device_id', '628123456789', 'Hello');
 } catch (KirimiException $e) {
-    $errorMessage = $e->getMessage();
-    
-    if (strpos($errorMessage, 'Parameter tidak lengkap') !== false) {
-        echo 'Missing required parameters';
-    } elseif (strpos($errorMessage, 'device tidak terhubung') !== false) {
-        echo 'Device is not connected';
-    } elseif (strpos($errorMessage, 'kuota habis') !== false) {
-        echo 'Quota exceeded';
+    switch ($e->getStatusCode()) {
+        case 401:
+            echo 'Invalid credentials';
+            break;
+        case 402:
+            echo 'Insufficient balance';
+            break;
+        case 429:
+            echo 'Rate limited, retry later';
+            break;
+        default:
+            echo 'Request failed: ' . $e->getMessage();
     }
-    // Handle other specific errors...
 }
 ```
 

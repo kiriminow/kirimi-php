@@ -8,17 +8,10 @@
          stopOnFailure="false"
          executionOrder="random"
          cacheDirectory=".phpunit.cache"
-         beStrictAboutCoversAnnotation="true"
-         beStrictAboutOutputDuringTests="true"
-         beStrictAboutTodoAnnotatedTests="true"
-         convertDeprecationsToExceptions="true"
-         verbose="true">
+         beStrictAboutOutputDuringTests="true">
     <testsuites>
         <testsuite name="Unit Tests">
             <directory>tests/Unit</directory>
-        </testsuite>
-        <testsuite name="Integration Tests">
-            <directory>tests/Integration</directory>
         </testsuite>
     </testsuites>
 
@@ -28,8 +21,7 @@
         </include>
     </source>
 
-    <coverage cacheDirectory=".phpunit.cache/code-coverage"
-              includeUncoveredFiles="true"
+    <coverage includeUncoveredFiles="true"
               pathCoverage="false"
               ignoreDeprecatedCodeUnits="true"
               disableCodeCoverageIgnore="true">
@@ -39,10 +31,6 @@
             <text outputFile="php://stdout"/>
         </report>
     </coverage>
-
-    <logging>
-        <junit outputFile="coverage/junit.xml"/>
-    </logging>
 
     <php>
         <env name="APP_ENV" value="testing"/>

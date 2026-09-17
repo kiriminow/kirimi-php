@@ -48,14 +48,22 @@ function demonstrateKirimiFeatures(string $userCode, string $secret, string $dev
         );
         echo "✅ Media message sent: " . json_encode($mediaResult) . PHP_EOL . PHP_EOL;
 
-        // 4. Generate OTP (requires Basic or Pro package)
-        echo "4. Generating OTP..." . PHP_EOL;
+        // 4. Send Message (fast mode)
+        echo "4. Sending fast message..." . PHP_EOL;
+        $fastResult = $client->sendMessageFast($deviceId, $testPhone, 'Fast hello! ⚡');
+        echo "✅ Fast message sent: " . json_encode($fastResult) . PHP_EOL . PHP_EOL;
+
+        // 5. Generate OTP (requires Basic or Pro package)
+        echo "5. Generating OTP..." . PHP_EOL;
         try {
-            $otpResult = $client->generateOTP($deviceId, $testPhone);
+            $otpResult = $client->generateOTP($deviceId, $testPhone, [
+                'otp_length' => 6,
+                'otp_type'   => 'numeric',
+            ]);
             echo "✅ OTP generated: " . json_encode($otpResult) . PHP_EOL;
-            
-            // 5. Validate OTP (demo with dummy code)
-            echo "5. Validating OTP (demo with code '123456')..." . PHP_EOL;
+
+            // 6. Validate OTP (demo with dummy code)
+            echo "6. Validating OTP (demo with code '123456')..." . PHP_EOL;
             try {
                 $validateResult = $client->validateOTP($deviceId, $testPhone, '123456');
                 echo "✅ OTP validated: " . json_encode($validateResult) . PHP_EOL;
@@ -166,6 +174,94 @@ function demonstrateNotificationService(string $userCode, string $secret, string
 }
 
 /**
+ * Demonstrate the WABA, device, contact and deposit endpoints
+ */
+function demonstrateAdvancedFeatures(string $userCode, string $secret, string $deviceId, string $testPhone): void
+{
+    echo PHP_EOL . "🏢 WABA, Devices, Contacts & Deposits Demo" . PHP_EOL . PHP_EOL;
+
+    $client = new KirimiClient($userCode, $secret);
+    $wabaId = $_ENV['KIRIMI_WABA_ID'] ?? 'your_waba_id';
+
+    // Account info and packages
+    echo "1. Fetching account info and packages..." . PHP_EOL;
+    try {
+        echo "   User: " . json_encode($client->userInfo()) . PHP_EOL;
+        echo "   Packages: " . json_encode($client->listPackages()) . PHP_EOL;
+    } catch (KirimiException $e) {
+        echo "   ℹ️ " . $e->getMessage() . PHP_EOL;
+    }
+    echo PHP_EOL;
+
+    // Devices
+    echo "2. Listing devices..." . PHP_EOL;
+    try {
+        echo "   " . json_encode($client->listDevices(1, 10)) . PHP_EOL;
+    } catch (KirimiException $e) {
+        echo "   ℹ️ " . $e->getMessage() . PHP_EOL;
+    }
+    echo PHP_EOL;
+
+    // Contacts
+    echo "3. Saving a contact (nama + nomor)..." . PHP_EOL;
+    try {
+        $contact = $client->saveContact('Demo Contact', $testPhone, $deviceId);
+        echo "   ✅ " . json_encode($contact) . PHP_EOL;
+    } catch (KirimiException $e) {
+        echo "   ℹ️ " . $e->getMessage() . PHP_EOL;
+    }
+    echo PHP_EOL;
+
+    // WABA template message
+    echo "4. Sending WABA template message..." . PHP_EOL;
+    try {
+        $waba = $client->sendWabaMessage($wabaId, $testPhone, 'hello_world', [
+            'variables' => ['Demo'],
+        ]);
+        echo "   ✅ " . json_encode($waba) . PHP_EOL;
+    } catch (KirimiException $e) {
+        echo "   ℹ️ " . $e->getMessage() . PHP_EOL;
+    }
+    echo PHP_EOL;
+
+    // WABA conversations
+    echo "5. Listing WABA conversations..." . PHP_EOL;
+    try {
+        echo "   " . json_encode($client->wabaConversations(50, 1)) . PHP_EOL;
+    } catch (KirimiException $e) {
+        echo "   ℹ️ " . $e->getMessage() . PHP_EOL;
+    }
+    echo PHP_EOL;
+
+    // Deposits
+    echo "6. Listing deposits..." . PHP_EOL;
+    try {
+        echo "   " . json_encode($client->listDeposits(['limit' => 10])) . PHP_EOL;
+    } catch (KirimiException $e) {
+        echo "   ℹ️ " . $e->getMessage() . PHP_EOL;
+    }
+    echo PHP_EOL;
+}
+
+/**
+ * Demonstrate HTTP status code aware error handling
+ */
+function demonstrateStatusCodeHandling(): void
+{
+    echo "🔍 HTTP Status Code Handling" . PHP_EOL . PHP_EOL;
+
+    try {
+        $client = new KirimiClient('invalid_user', 'invalid_secret');
+        $client->userInfo();
+    } catch (KirimiException $e) {
+        echo "Status: " . var_export($e->getStatusCode(), true) . PHP_EOL;
+        echo "Message: " . $e->getMessage() . PHP_EOL;
+    }
+
+    echo PHP_EOL;
+}
+
+/**
  * Display result helper function
  */
 function displayResult(array $result): void
@@ -261,8 +357,12 @@ if (php_sapi_name() === 'cli') {
     // Notification Service demonstration
     demonstrateNotificationService($userCode, $secret, $deviceId, $testPhone);
 
+    // WABA, devices, contacts and deposits
+    demonstrateAdvancedFeatures($userCode, $secret, $deviceId, $testPhone);
+
     // Error handling demonstration
     demonstrateErrorHandling();
+    demonstrateStatusCodeHandling();
 
     // Framework examples
     showFrameworkExamples();
